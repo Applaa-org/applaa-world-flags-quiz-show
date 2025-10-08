@@ -16,8 +16,8 @@ const Play = () => {
   const [currentQuestion, setCurrentQuestion] = React.useState(0);
   const [score, setScore] = React.useState(0);
   const [gameState, setGameState] = React.useState<"playing" | "suddenDeath" | "finished">("playing");
-  const [timeLeft, setTimeLeft] = React.useState(45); // Increased from 30s to 45s for slower pace
-  const timerIdRef = useRef<NodeJS.Timeout | null>(null); // Use ref to ensure reliable clearing
+  const [timeLeft, setTimeLeft] = React.useState(45);
+  const timerIdRef = useRef<NodeJS.Timeout | null>(null);
   const [streak, setStreak] = React.useState(0);
   const [selectedOptions, setSelectedOptions] = React.useState<Set<number>>(new Set());
   const totalQuestions = 10;
@@ -67,7 +67,7 @@ const Play = () => {
         clearInterval(timerIdRef.current);
       }
       
-      setTimeLeft(45); // Reset to 45s
+      setTimeLeft(45);
       const id = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
@@ -78,7 +78,7 @@ const Play = () => {
           }
           return prev - 1;
         });
-      }, 1000); // Standard 1s interval for smooth countdown
+      }, 1000);
       
       timerIdRef.current = id;
       
@@ -91,7 +91,7 @@ const Play = () => {
     }
   }, [currentQuestion, gameState]);
 
-  // Next question logic as regular function to avoid circular deps
+  // Next question logic with brief delay for smooth flag transition
   const nextQuestion = React.useCallback((wasCorrect: boolean) => {
     // Always clear timer on question change
     if (timerIdRef.current) {
@@ -99,40 +99,43 @@ const Play = () => {
       timerIdRef.current = null;
     }
 
-    if (gameState === "playing") {
-      if (currentQuestion < totalQuestions - 1) {
-        setCurrentQuestion(prev => prev + 1);
-      } else {
-        // After 10 questions, trigger sudden death if score >= 8
-        if (score >= 8) {
-          setGameState("suddenDeath");
-          setSuddenDeathAttempts(0);
-          setCurrentQuestion(0);
-          // Generate new questions for sudden death
-          const newQuestions = generateQuestions();
-          setQuestions(newQuestions);
-        } else {
-          setGameState("finished");
-        }
-      }
-    } else if (gameState === "suddenDeath") {
-      if (wasCorrect) {
-        if (suddenDeathAttempts < suddenDeathQuestions - 1) {
-          setSuddenDeathAttempts(prev => prev + 1);
+    // Brief delay to allow flag animation to complete before advancing
+    setTimeout(() => {
+      if (gameState === "playing") {
+        if (currentQuestion < totalQuestions - 1) {
           setCurrentQuestion(prev => prev + 1);
         } else {
+          // After 10 questions, trigger sudden death if score >= 8
+          if (score >= 8) {
+            setGameState("suddenDeath");
+            setSuddenDeathAttempts(0);
+            setCurrentQuestion(0);
+            // Generate new questions for sudden death
+            const newQuestions = generateQuestions();
+            setQuestions(newQuestions);
+          } else {
+            setGameState("finished");
+          }
+        }
+      } else if (gameState === "suddenDeath") {
+        if (wasCorrect) {
+          if (suddenDeathAttempts < suddenDeathQuestions - 1) {
+            setSuddenDeathAttempts(prev => prev + 1);
+            setCurrentQuestion(prev => prev + 1);
+          } else {
+            setGameState("finished");
+          }
+        } else {
           setGameState("finished");
         }
-      } else {
-        setGameState("finished");
       }
-    }
+    }, 200); // 200ms delay for smooth transition
   }, [gameState, currentQuestion, totalQuestions, score, suddenDeathAttempts, suddenDeathQuestions, generateQuestions]);
 
   const handleTimeOut = React.useCallback(() => {
     setStreak(0);
     nextQuestion(false);
-  }, []); // No deps needed; uses functional updates internally
+  }, [nextQuestion]);
 
   const handleSelect = React.useCallback((selectedId: number, correctId: number) => {
     const isCorrect = selectedId === correctId;
@@ -145,7 +148,7 @@ const Play = () => {
       showError("Time's up or wrong!");
     }
     nextQuestion(isCorrect);
-  }, []); // No deps; safe with functional updates
+  }, [nextQuestion]);
 
   const restartGame = React.useCallback(() => {
     // Clear timer on restart
@@ -236,7 +239,7 @@ const Play = () => {
               options={options}
               onSelect={handleSelect}
               timeLeft={timeLeft}
-              totalTime={45} // Updated to match new timeLeft
+              totalTime={45}
               questionNumber={currentQuestion + 1}
               totalQuestions={displayTotal}
             />
