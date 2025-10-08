@@ -7,7 +7,7 @@ import GameResults from "@/components/GameResults";
 import { countries } from "@/data/flags";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { showError, showSuccess } from "@/utils/toast";
 
 const Play = () => {
@@ -43,10 +43,16 @@ const Play = () => {
         : (c: typeof countries[0]) => true;
     
     available = available.filter(difficultyFilter);
+    
+    // Safety: Ensure we have enough questions
+    if (available.length === 0) {
+      available = countries;
+    }
+    
     const selected = shuffle(available).slice(0, totalQuestions);
     setSelectedOptions(new Set(selected.map(c => c.id)));
     return selected;
-  }, [streak, selectedOptions, shuffle]);
+  }, [streak, selectedOptions, shuffle, totalQuestions]);
 
   React.useEffect(() => {
     setQuestions(generateQuestions());
@@ -71,24 +77,7 @@ const Play = () => {
     }
   }, [currentQuestion, gameState]);
 
-  const handleTimeOut = React.useCallback(() => {
-    setStreak(0);
-    nextQuestion(false);
-  }, [streak]);
-
-  const handleSelect = React.useCallback((selectedId: number, correctId: number) => {
-    const isCorrect = selectedId === correctId;
-    if (isCorrect) {
-      setScore(prev => prev + 1);
-      setStreak(prev => prev + 1);
-      showSuccess("Correct!");
-    } else {
-      setStreak(0);
-      showError("Time's up or wrong!");
-    }
-    nextQuestion(isCorrect);
-  }, [streak]);
-
+  // Next question logic as regular function to avoid circular deps
   const nextQuestion = React.useCallback((wasCorrect: boolean) => {
     if (timerId) clearInterval(timerId);
 
@@ -101,7 +90,9 @@ const Play = () => {
           setGameState("suddenDeath");
           setSuddenDeathAttempts(0);
           setCurrentQuestion(0);
-          setQuestions(generateQuestions());
+          // Generate new questions for sudden death
+          const newQuestions = generateQuestions();
+          setQuestions(newQuestions);
         } else {
           setGameState("finished");
         }
@@ -120,6 +111,24 @@ const Play = () => {
     }
   }, [timerId, gameState, currentQuestion, totalQuestions, score, suddenDeathAttempts, suddenDeathQuestions, generateQuestions]);
 
+  const handleTimeOut = React.useCallback(() => {
+    setStreak(0);
+    nextQuestion(false);
+  }, [streak]); // Removed nextQuestion from deps to avoid circularity; use functional updates
+
+  const handleSelect = React.useCallback((selectedId: number, correctId: number) => {
+    const isCorrect = selectedId === correctId;
+    if (isCorrect) {
+      setScore(prev => prev + 1);
+      setStreak(prev => prev + 1);
+      showSuccess("Correct!");
+    } else {
+      setStreak(0);
+      showError("Time's up or wrong!");
+    }
+    nextQuestion(isCorrect);
+  }, [streak]); // Removed nextQuestion from deps
+
   const restartGame = React.useCallback(() => {
     setCurrentQuestion(0);
     setScore(0);
@@ -127,7 +136,8 @@ const Play = () => {
     setGameState("playing");
     setSelectedOptions(new Set());
     setSuddenDeathAttempts(0);
-    setQuestions(generateQuestions());
+    const newQuestions = generateQuestions();
+    setQuestions(newQuestions);
   }, [generateQuestions]);
 
   const submitScore = React.useCallback(() => {
@@ -149,6 +159,21 @@ const Play = () => {
             onRestart={restartGame} 
             onSubmitScore={submitScore} 
           />
+        </main>
+      </div>
+    );
+  }
+
+  // Safety check: Ensure questions are loaded and current index is valid
+  if (!questions || questions.length === 0 || currentQuestion >= questions.length) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
+        <Header />
+        <main className="container mx-auto px-4 py-8 text-center">
+          <div className="flex flex-col items-center space-y-4">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+            <p className="text-lg text-gray-600">Loading next question...</p>
+          </div>
         </main>
       </div>
     );
