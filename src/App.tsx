@@ -11,6 +11,11 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Index from "./pages/Index";
+import Play from "./pages/Play";
+import Leaderboard from "./pages/Leaderboard";
+import About from "./pages/About";
+import Contact from "./pages/Contact";
+import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
@@ -27,15 +32,45 @@ const rootRoute = createRootRoute({
   ),
 })
 
-// Create index route
+// Create routes
 const indexRoute = createTanStackRoute({
   getParentRoute: () => rootRoute,
   path: '/',
   component: Index,
 })
 
+const playRoute = createTanStackRoute({
+  getParentRoute: () => rootRoute,
+  path: '/play',
+  component: Play,
+})
+
+const leaderboardRoute = createTanStackRoute({
+  getParentRoute: () => rootRoute,
+  path: '/leaderboard',
+  component: Leaderboard,
+})
+
+const aboutRoute = createTanStackRoute({
+  getParentRoute: () => rootRoute,
+  path: '/about',
+  component: About,
+})
+
+const contactRoute = createTanStackRoute({
+  getParentRoute: () => rootRoute,
+  path: '/contact',
+  component: Contact,
+})
+
+const notFoundRoute = createTanStackRoute({
+  getParentRoute: () => rootRoute,
+  path: '*',
+  component: NotFound,
+})
+
 // Create route tree
-const routeTree = rootRoute.addChildren([indexRoute])
+const routeTree = rootRoute.addChildren([indexRoute, playRoute, leaderboardRoute, aboutRoute, contactRoute, notFoundRoute])
 
 // Create router with proper TypeScript configuration
 const router = createRouter({ 
@@ -54,4 +89,3 @@ declare module '@tanstack/react-router' {
 const App = () => <RouterProvider router={router} />
 
 export default App;
-

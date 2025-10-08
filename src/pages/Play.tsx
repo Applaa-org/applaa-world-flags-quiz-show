@@ -17,32 +17,40 @@ const Play = () => {
   const [gameState, setGameState] = React.useState<"playing" | "suddenDeath" | "finished">("playing");
   const [timeLeft, setTimeLeft] = React.useState(30);
   const [timerId, setTimerId] = React.useState<NodeJS.Timeout | null>(null);
-  const [streak, setStreak] = React.useState(0); // For adaptive difficulty
-  const [selectedOptions, setSelectedOptions] = React.useState<Set<number>>(new Set()); // Track used countries
+  const [streak, setStreak] = React.useState(0);
+  const [selectedOptions, setSelectedOptions] = React.useState<Set<number>>(new Set());
   const totalQuestions = 10;
-  const suddenDeathQuestions = 3; // Max sudden death attempts
+  const suddenDeathQuestions = 3;
   const [suddenDeathAttempts, setSuddenDeathAttempts] = React.useState(0);
+  const [questions, setQuestions] = React.useState(countries.slice(0, totalQuestions));
 
-  // Shuffle array helper
-  const shuffle = <T>(array: T[]): T[] => [...array].sort(() => Math.random() - 0.5);
+  // Shuffle array helper with proper generic syntax
+  const shuffle = React.useCallback(<T,>(array: T[]): T[] => [...array].sort(() => Math.random() - 0.5), []);
 
-  // Generate new question set (random 10 unused countries, adaptive difficulty)
+  // Generate new question set
   const generateQuestions = React.useCallback(() => {
     let available = countries.filter(c => !selectedOptions.has(c.id));
-    if (available.length < 4) available = countries; // Reset if low
+    if (available.length < 4) {
+      available = countries;
+      setSelectedOptions(new Set());
+    }
 
-    // Adaptive: More hard questions if streak > 3, easy if < 2
-    const difficultyFilter = streak > 3 ? (c: typeof countries[0]) => c.difficulty === "hard" || Math.random() > 0.5
-      : streak < 2 ? (c: typeof countries[0]) => c.difficulty === "easy"
-      : (c: typeof countries[0]) => true;
+    // Adaptive difficulty
+    const difficultyFilter = streak > 3 
+      ? (c: typeof countries[0]) => c.difficulty === "hard" || Math.random() > 0.5
+      : streak < 2 
+        ? (c: typeof countries[0]) => c.difficulty === "easy"
+        : (c: typeof countries[0]) => true;
+    
     available = available.filter(difficultyFilter);
-
     const selected = shuffle(available).slice(0, totalQuestions);
     setSelectedOptions(new Set(selected.map(c => c.id)));
     return selected;
-  }, [streak, selectedOptions]);
+  }, [streak, selectedOptions, shuffle]);
 
-  const [questions] = React.useState(generateQuestions);
+  React.useEffect(() => {
+    setQuestions(generateQuestions());
+  }, [generateQuestions]);
 
   // Timer logic
   React.useEffect(() => {
@@ -63,12 +71,12 @@ const Play = () => {
     }
   }, [currentQuestion, gameState]);
 
-  const handleTimeOut = () => {
+  const handleTimeOut = React.useCallback(() => {
     setStreak(0);
     nextQuestion(false);
-  };
+  }, [streak]);
 
-  const handleSelect = (selectedId: number, correctId: number) => {
+  const handleSelect = React.useCallback((selectedId: number, correctId: number) => {
     const isCorrect = selectedId === correctId;
     if (isCorrect) {
       setScore(prev => prev + 1);
@@ -79,17 +87,24 @@ const Play = () => {
       showError("Time's up or wrong!");
     }
     nextQuestion(isCorrect);
-  };
+  }, [streak]);
 
-  const nextQuestion = (wasCorrect: boolean) => {
+  const nextQuestion = React.useCallback((wasCorrect: boolean) => {
     if (timerId) clearInterval(timerId);
 
     if (gameState === "playing") {
       if (currentQuestion < totalQuestions - 1) {
         setCurrentQuestion(prev => prev + 1);
       } else {
-        // End regular game, check for sudden death
-        setGameState("finished");
+        // After 10 questions, trigger sudden death if score >= 8
+        if (score >= 8) {
+          setGameState("suddenDeath");
+          setSuddenDeathAttempts(0);
+          setCurrentQuestion(0);
+          setQuestions(generateQuestions());
+        } else {
+          setGameState("finished");
+        }
       }
     } else if (gameState === "suddenDeath") {
       if (wasCorrect) {
@@ -100,26 +115,24 @@ const Play = () => {
           setGameState("finished");
         }
       } else {
-        // Lose sudden death
-        setScore(prev => prev); // No add
         setGameState("finished");
       }
     }
-  };
+  }, [timerId, gameState, currentQuestion, totalQuestions, score, suddenDeathAttempts, suddenDeathQuestions, generateQuestions]);
 
-  const restartGame = () => {
+  const restartGame = React.useCallback(() => {
     setCurrentQuestion(0);
     setScore(0);
     setStreak(0);
     setGameState("playing");
     setSelectedOptions(new Set());
-    generateQuestions(); // New set
-  };
+    setSuddenDeathAttempts(0);
+    setQuestions(generateQuestions());
+  }, [generateQuestions]);
 
-  const submitScore = () => {
-    // Placeholder for Supabase submission
+  const submitScore = React.useCallback(() => {
     console.log("Score submitted:", score);
-  };
+  }, [score]);
 
   if (gameState === "finished") {
     return (
@@ -130,14 +143,24 @@ const Play = () => {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Home
           </Button>
-          <GameResults score={score} totalQuestions={totalQuestions + suddenDeathAttempts} onRestart={restartGame} onSubmitScore={submitScore} />
+          <GameResults 
+            score={score} 
+            totalQuestions={totalQuestions + suddenDeathAttempts} 
+            onRestart={restartGame} 
+            onSubmitScore={submitScore} 
+          />
         </main>
       </div>
     );
   }
 
   const currentCountry = questions[currentQuestion];
-  const options = shuffle(countries.filter(c => c.id !== currentCountry.id && !selectedOptions.has(c.id)).slice(0, 3).concat(currentCountry));
+  const options = shuffle(
+    countries
+      .filter(c => c.id !== currentCountry.id)
+      .slice(0, 3)
+      .concat(currentCountry)
+  );
 
   const isSuddenDeath = gameState === "suddenDeath";
   const displayTotal = isSuddenDeath ? suddenDeathQuestions : totalQuestions;
@@ -153,8 +176,12 @@ const Play = () => {
         <Card className="w-full max-w-4xl bg-white/80 backdrop-blur-sm shadow-lg">
           <CardContent className="p-0">
             <div className="p-6 text-center">
-              <h1 className="text-3xl font-bold mb-2">Flag Quiz {isSuddenDeath ? "(Sudden Death)" : ""}</h1>
-              <p className="text-gray-600">Score: {score} | Streak: {streak} | Time: {timeLeft}s</p>
+              <h1 className="text-3xl font-bold mb-2">
+                Flag Quiz {isSuddenDeath ? "(Sudden Death)" : ""}
+              </h1>
+              <p className="text-gray-600">
+                Score: {score} | Streak: {streak} | Time: {timeLeft}s
+              </p>
             </div>
             <GameQuestion
               flagCountry={currentCountry}

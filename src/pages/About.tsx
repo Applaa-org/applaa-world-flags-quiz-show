@@ -1,28 +1,6 @@
 "use client";
 import * as React from "react";
-import { Link, useNavigate } from "@tanstack/react-router";
-import Header from "@/components/Header";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Shield, Zap } from "lucide-react";
-import { MadeWithApplaa } from "@/components/made-with-applaa";
-
-const About = () => {
-  const navigate = useNavigate();
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <Header />
-      <main className="container mx-auto px-4 py-8 max-w-4xl">
-        <Button variant="ghost" onClick={() => navigate({ to: "/" })} className="mb-6">
-          ← Back to Home
-        </Button>
-        <Card className="bg-white/80 backdrop-blur-sm shadow-lg mb-8">
-          <CardHeader>
-<applaa-write path="src/pages/About.tsx" description="About page with game story, features, and team info. Includes Header and back button.">
-"use client";
-import * as React from "react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

@@ -1,14 +1,15 @@
 "use client";
 import * as React from "react";
-import { Link, useMatch } from "@tanstack/react-router";
-import { Menu, X } from "lucide-react";
+import { Link, useLocation } from "@tanstack/react-router";
+import { Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 export default function Header() {
+  const location = useLocation();
+  const isHome = location.pathname === "/";
   const [isOpen, setIsOpen] = React.useState(false);
-  const isHome = useMatch({ to: "/" });
 
   return (
     <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-xl border-b border-gray-200/50 shadow-lg">

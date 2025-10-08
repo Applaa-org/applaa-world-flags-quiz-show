@@ -10,7 +10,7 @@ interface GameResultsProps {
   score: number;
   totalQuestions: number;
   onRestart: () => void;
-  onSubmitScore?: () => void; // For leaderboard submission later
+  onSubmitScore?: () => void;
 }
 
 export default function GameResults({ score, totalQuestions, onRestart, onSubmitScore }: GameResultsProps) {
