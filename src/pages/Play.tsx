@@ -9,14 +9,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { showError, showSuccess } from "@/utils/toast";
+import { useRef } from "react";
 
 const Play = () => {
   const navigate = useNavigate();
   const [currentQuestion, setCurrentQuestion] = React.useState(0);
   const [score, setScore] = React.useState(0);
   const [gameState, setGameState] = React.useState<"playing" | "suddenDeath" | "finished">("playing");
-  const [timeLeft, setTimeLeft] = React.useState(30);
-  const [timerId, setTimerId] = React.useState<NodeJS.Timeout | null>(null);
+  const [timeLeft, setTimeLeft] = React.useState(45); // Increased from 30s to 45s for slower pace
+  const timerIdRef = useRef<NodeJS.Timeout | null>(null); // Use ref to ensure reliable clearing
   const [streak, setStreak] = React.useState(0);
   const [selectedOptions, setSelectedOptions] = React.useState<Set<number>>(new Set());
   const totalQuestions = 10;
@@ -58,28 +59,45 @@ const Play = () => {
     setQuestions(generateQuestions());
   }, [generateQuestions]);
 
-  // Timer logic
+  // Timer logic with ref for reliable interval management
   React.useEffect(() => {
     if (gameState === "playing" || gameState === "suddenDeath") {
-      setTimeLeft(30);
+      // Clear any existing timer
+      if (timerIdRef.current) {
+        clearInterval(timerIdRef.current);
+      }
+      
+      setTimeLeft(45); // Reset to 45s
       const id = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
             clearInterval(id);
+            timerIdRef.current = null;
             handleTimeOut();
             return 0;
           }
           return prev - 1;
         });
-      }, 1000);
-      setTimerId(id);
-      return () => clearInterval(id);
+      }, 1000); // Standard 1s interval for smooth countdown
+      
+      timerIdRef.current = id;
+      
+      return () => {
+        if (timerIdRef.current) {
+          clearInterval(timerIdRef.current);
+          timerIdRef.current = null;
+        }
+      };
     }
   }, [currentQuestion, gameState]);
 
   // Next question logic as regular function to avoid circular deps
   const nextQuestion = React.useCallback((wasCorrect: boolean) => {
-    if (timerId) clearInterval(timerId);
+    // Always clear timer on question change
+    if (timerIdRef.current) {
+      clearInterval(timerIdRef.current);
+      timerIdRef.current = null;
+    }
 
     if (gameState === "playing") {
       if (currentQuestion < totalQuestions - 1) {
@@ -109,12 +127,12 @@ const Play = () => {
         setGameState("finished");
       }
     }
-  }, [timerId, gameState, currentQuestion, totalQuestions, score, suddenDeathAttempts, suddenDeathQuestions, generateQuestions]);
+  }, [gameState, currentQuestion, totalQuestions, score, suddenDeathAttempts, suddenDeathQuestions, generateQuestions]);
 
   const handleTimeOut = React.useCallback(() => {
     setStreak(0);
     nextQuestion(false);
-  }, [streak]); // Removed nextQuestion from deps to avoid circularity; use functional updates
+  }, []); // No deps needed; uses functional updates internally
 
   const handleSelect = React.useCallback((selectedId: number, correctId: number) => {
     const isCorrect = selectedId === correctId;
@@ -127,9 +145,14 @@ const Play = () => {
       showError("Time's up or wrong!");
     }
     nextQuestion(isCorrect);
-  }, [streak]); // Removed nextQuestion from deps
+  }, []); // No deps; safe with functional updates
 
   const restartGame = React.useCallback(() => {
+    // Clear timer on restart
+    if (timerIdRef.current) {
+      clearInterval(timerIdRef.current);
+      timerIdRef.current = null;
+    }
     setCurrentQuestion(0);
     setScore(0);
     setStreak(0);
@@ -213,7 +236,7 @@ const Play = () => {
               options={options}
               onSelect={handleSelect}
               timeLeft={timeLeft}
-              totalTime={30}
+              totalTime={45} // Updated to match new timeLeft
               questionNumber={currentQuestion + 1}
               totalQuestions={displayTotal}
             />

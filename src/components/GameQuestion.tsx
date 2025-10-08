@@ -13,7 +13,7 @@ interface GameQuestionProps {
   options: Country[];
   onSelect: (selectedId: number, correctId: number) => void;
   timeLeft: number;
-  totalTime: number;
+  totalTime: number; // Default to 45 now
   questionNumber: number;
   totalQuestions: number;
 }
@@ -23,7 +23,7 @@ export default function GameQuestion({
   options,
   onSelect,
   timeLeft,
-  totalTime,
+  totalTime = 45, // Increased default from 30 to 45
   questionNumber,
   totalQuestions,
 }: GameQuestionProps) {
